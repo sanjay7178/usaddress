@@ -35,9 +35,16 @@ Parserator: Parse and Split Addresses allows you to easily split addresses into 
   import usaddress
   addr='123 Main St. Suite 100 Chicago, IL'
   
-  # The parse method will split your address string into components, and label each component.
-  # expected output: [(u'123', 'AddressNumber'), (u'Main', 'StreetName'), (u'St.', 'StreetNamePostType'), (u'Suite', 'OccupancyType'), (u'100', 'OccupancyIdentifier'), (u'Chicago,', 'PlaceName'), (u'IL', 'StateName')]
+  # The parse method will split your address string into components, label each component,
+  # and include start/end character offsets for each labeled token.
+  # expected output: [(u'123', 'AddressNumber', 0, 3), (u'Main', 'StreetName', 4, 8),
+  # (u'St.', 'StreetNamePostType', 9, 12), (u'Suite', 'OccupancyType', 13, 18),
+  # (u'100', 'OccupancyIdentifier', 19, 22), (u'Chicago,', 'PlaceName', 23, 31),
+  # (u'IL', 'StateName', 32, 34)]
   usaddress.parse(addr)
+  
+  # The parse method can also handle multiple addresses separated by semicolons or blank lines.
+  # Offsets always refer to the original input text.
   
   # The tag method will try to be a little smarter
   # it will merge consecutive components, strip commas, & return an address type

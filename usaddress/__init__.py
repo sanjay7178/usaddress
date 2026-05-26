@@ -46,6 +46,17 @@ GROUP_LABEL = "AddressCollection"
 MODEL_FILE = "usaddr.crfsuite"
 MODEL_PATH = os.path.split(os.path.abspath(__file__))[0] + "/" + MODEL_FILE
 
+TOKEN_RE = re.compile(
+    r"""
+    \(*\b[^\s,;#&()]+[.,;)\n]*   # ['ab. cd,ef '] -> ['ab.', 'cd,', 'ef']
+    |
+    [#&]                       # [^'#abc'] -> ['#']
+    """,
+    re.VERBOSE | re.UNICODE,
+)
+
+ADDRESS_SEPARATOR_RE = re.compile(r"(?:\r?\n\s*\r?\n)+|[;]+")
+
 DIRECTIONS = {
     "n",
     "s",
@@ -668,16 +679,34 @@ except OSError:
     )
 
 
-def parse(address_string: str) -> list[tuple[str, str]]:
-    tokens = tokenize(address_string)
-
-    if not tokens:
+def parse(address_string: str) -> list[tuple[str, str, int, int]]:
+    normalized, char_spans = _normalize_address_string(address_string)
+    if not normalized:
         return []
 
-    features = tokens2features(tokens)
+    address_spans = _split_address_spans(normalized)
+    if not address_spans:
+        return []
 
-    tags = TAGGER.tag(features)
-    return list(zip(tokens, tags))
+    parsed_tokens: list[tuple[str, str, int, int]] = []
+    for span_start, span_end in address_spans:
+        segment = normalized[span_start:span_end]
+        tokens_with_spans = _tokenize_with_spans(segment)
+        if not tokens_with_spans:
+            continue
+
+        tokens = [token for token, _, _ in tokens_with_spans]
+        features = tokens2features(tokens)
+        tags = TAGGER.tag(features)
+
+        for (token, token_start, token_end), tag in zip(tokens_with_spans, tags):
+            normalized_start = span_start + token_start
+            normalized_end = span_start + token_end
+            original_start = char_spans[normalized_start][0]
+            original_end = char_spans[normalized_end - 1][1]
+            parsed_tokens.append((token, tag, original_start, original_end))
+
+    return parsed_tokens
 
 
 def tag(address_string: str, tag_mapping=None) -> tuple[dict[str, str], str]:
@@ -687,7 +716,7 @@ def tag(address_string: str, tag_mapping=None) -> tuple[dict[str, str], str]:
     is_intersection = False
     og_labels = []
 
-    for token, label in parse(address_string):
+    for token, label, _, _ in parse(address_string):
         if label == "IntersectionSeparator":
             is_intersection = True
         if "StreetName" in label and is_intersection:
@@ -729,24 +758,72 @@ def tag(address_string: str, tag_mapping=None) -> tuple[dict[str, str], str]:
 
 
 def tokenize(address_string: str) -> list[str]:
+    normalized, _ = _normalize_address_string(address_string)
+    tokens_with_spans = _tokenize_with_spans(normalized)
+    if not tokens_with_spans:
+        return []
+    return [token for token, _, _ in tokens_with_spans]
+
+
+def _normalize_address_string(address_string: str) -> tuple[str, list[tuple[int, int]]]:
     if isinstance(address_string, bytes):
         address_string = str(address_string, encoding="utf-8")
-    address_string = re.sub("(&#38;)|(&amp;)", "&", address_string)
-    re_tokens = re.compile(
-        r"""
-    \(*\b[^\s,;#&()]+[.,;)\n]*   # ['ab. cd,ef '] -> ['ab.', 'cd,', 'ef']
-    |
-    [#&]                       # [^'#abc'] -> ['#']
-    """,
-        re.VERBOSE | re.UNICODE,
-    )
 
-    tokens = re_tokens.findall(address_string)
+    normalized_chars: list[str] = []
+    char_spans: list[tuple[int, int]] = []
+    index = 0
+    while index < len(address_string):
+        if address_string.startswith("&#38;", index):
+            normalized_chars.append("&")
+            char_spans.append((index, index + 5))
+            index += 5
+            continue
+        if address_string.startswith("&amp;", index):
+            normalized_chars.append("&")
+            char_spans.append((index, index + 5))
+            index += 5
+            continue
 
-    if not tokens:
-        return []
+        normalized_chars.append(address_string[index])
+        char_spans.append((index, index + 1))
+        index += 1
 
+    return "".join(normalized_chars), char_spans
+
+
+def _tokenize_with_spans(address_string: str) -> list[tuple[str, int, int]]:
+    tokens = [
+        (match.group(0), match.start(), match.end())
+        for match in TOKEN_RE.finditer(address_string)
+    ]
     return tokens
+
+
+def _split_address_spans(address_string: str) -> list[tuple[int, int]]:
+    spans: list[tuple[int, int]] = []
+    if not address_string:
+        return spans
+
+    segment_start = 0
+    for match in ADDRESS_SEPARATOR_RE.finditer(address_string):
+        spans.extend(_trim_span(address_string, segment_start, match.start()))
+        segment_start = match.end()
+
+    spans.extend(_trim_span(address_string, segment_start, len(address_string)))
+    return spans
+
+
+def _trim_span(
+    address_string: str, start: int, end: int
+) -> list[tuple[int, int]]:
+    segment = address_string[start:end]
+    if not segment:
+        return []
+    left_trim = len(segment) - len(segment.lstrip())
+    right_trim = len(segment.rstrip())
+    if right_trim <= left_trim:
+        return []
+    return [(start + left_trim, start + right_trim)]
 
 
 Feature = dict[str, typing.Union[str, bool, "Feature"]]

@@ -1,14 +1,18 @@
 import typing
 
-def parse(address_string: str) -> list[tuple[str, str]]:
+def parse(address_string: str) -> list[tuple[str, str, int, int]]:
     """
     Split an address string into components, and label each component.
+    Also return character boundaries for each labeled token.
+    If the input contains multiple addresses separated by semicolons or blank lines,
+    each address is parsed independently and returned in input order.
 
     Args:
         address_string (str): The address to parse
 
     Returns:
-        list[ tuple[str, str] ]: The parsed address
+        list[ tuple[str, str, int, int] ]: The parsed address tokens with labels
+        and start/end character offsets in the input string.
     """
     ...
 

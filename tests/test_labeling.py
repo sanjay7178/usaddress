@@ -14,7 +14,7 @@ from usaddress import GROUP_LABEL, parse
 def test_simple_addresses(address_text, components):
 
     _, labels_true = list(zip(*components))
-    _, labels_pred = list(zip(*parse(address_text)))
+    labels_pred = [label for _, label, _, _ in parse(address_text)]
     assert labels_pred == labels_true
 
 
@@ -29,7 +29,7 @@ def test_simple_addresses(address_text, components):
 def test_all(address_text, components):
 
     _, labels_true = list(zip(*components))
-    _, labels_pred = list(zip(*parse(address_text)))
+    labels_pred = [label for _, label, _, _ in parse(address_text)]
     assert labels_pred == labels_true
 
 
@@ -42,7 +42,7 @@ def test_all(address_text, components):
 def test_synthetic_addresses(address_text, components):
 
     _, labels_true = list(zip(*components))
-    _, labels_pred = list(zip(*parse(address_text)))
+    labels_pred = [label for _, label, _, _ in parse(address_text)]
     assert labels_pred == labels_true
 
 
@@ -55,7 +55,7 @@ def test_synthetic_addresses(address_text, components):
 def test_us50(address_text, components):
 
     _, labels_true = list(zip(*components))
-    _, labels_pred = list(zip(*parse(address_text)))
+    labels_pred = [label for _, label, _, _ in parse(address_text)]
     fuzzyEquals(labels_pred, labels_true)
 
 

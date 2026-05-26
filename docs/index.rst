@@ -18,20 +18,22 @@ Installation
 
 Usage
 =====
-The ``parse`` method will split your address string into components, and label each component.
+The ``parse`` method will split your address string into components, label each component,
+and include start/end character offsets for each labeled token. It also supports multiple
+addresses when they are separated by semicolons or blank lines.
    .. code:: python
 
       >>> import usaddress
       >>> usaddress.parse('Robie House, 5757 South Woodlawn Avenue, Chicago, IL 60637')
-      [('Robie', 'BuildingName'),
-      ('House,', 'BuildingName'),
-      ('5757', 'AddressNumber'),
-      ('South', 'StreetNamePreDirectional'),
-      ('Woodlawn', 'StreetName'),
-      ('Avenue,', 'StreetNamePostType'),
-      ('Chicago,', 'PlaceName'),
-      ('IL', 'StateName'),
-      ('60637', 'ZipCode')]
+      [('Robie', 'BuildingName', 0, 5),
+      ('House,', 'BuildingName', 6, 12),
+      ('5757', 'AddressNumber', 13, 17),
+      ('South', 'StreetNamePreDirectional', 18, 23),
+      ('Woodlawn', 'StreetName', 24, 32),
+      ('Avenue,', 'StreetNamePostType', 33, 40),
+      ('Chicago,', 'PlaceName', 41, 49),
+      ('IL', 'StateName', 50, 52),
+      ('60637', 'ZipCode', 53, 58)]
 
 The ``tag`` method will try to be a little smarter - it will merge consecutive components & strip commas, as well as return an address type (``Street Address``, ``Intersection``, ``PO Box``, or ``Ambiguous``)
    .. code:: python
@@ -166,4 +168,3 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
-
